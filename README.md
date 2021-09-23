@@ -1,6 +1,17 @@
 ## InnoChain smart contract
 InnoChain smart contract is a HOL4 model which is translated into AST of CakeML.
 
+## Contents
+/monadic: 
+- sc1TypesScript.sml : Smart-contract types instantiations 
+- monadChainScript.sml : Verification framework with traces & ltl in monadic style 
+- baseScript.sml : Smart-contract functions in monadic style & theorems
+ 
+/higher-order: 
+- sc1TypesScript.sml : Smart-contract types instantiations 
+- chainScript.sml : Verification framework with traces & ltl 
+- baseScript.sml : Smart-contract higher-order functions & theorems
+
 ## Build instructions
 
 Obtaining CakeML infrastructure without Docker:
