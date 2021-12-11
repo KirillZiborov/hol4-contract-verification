@@ -12,6 +12,8 @@ val _ = new_theory "monadChain";
 val _ = translation_extends "basisProg";
 val _ = ParseExtras.temp_tight_equality ();
 
+Type SCState = “:Campaign”;
+
 Datatype:
     Address = Contract_address num | Client_address num
 End
@@ -63,7 +65,7 @@ Definition get_receive_def:
 End
 
 Datatype:
-  ActionBody = Call Address Data | Deploy Contract Setup | noAct
+  ActionBody = Call Address Data | Deploy Contract Setup
 End
 
 (* сам запрос к контракту *)
@@ -84,7 +86,7 @@ Definition act_is_from_account_def:
 End
 
 Datatype:
-  Environment = <| envContracts : (Address -> Contract option); envContractStates : (Address -> State option)|>
+  Environment = <| envContracts : (Address -> Contract option); envContractStates : (Address -> SCState option)|>
 End
 
 Definition get_envContracts_def:
@@ -101,8 +103,8 @@ Definition add_contract_def :
 End
 
 Definition set_contract_state_def :  
-  set_contract_state addr state rec : Environment = 
-    rec with envContractStates := (get_envContractStates rec) (|addr |-> SOME state|) 
+  set_contract_state addr SCstate rec : Environment = 
+    rec with envContractStates := (get_envContractStates rec) (|addr |-> SOME SCstate|) 
 End
 
 Definition build_act_def :  
@@ -110,31 +112,25 @@ Definition build_act_def :
 End
 
 Inductive ActionEvaluation:
-      (∀ prevEnv act newEnv from to c setup s0 state. 
+      (∀ prevEnv act newEnv to c setup s0 state. 
       (address_is_contract to = T) ∧
       (get_envContracts prevEnv to = NONE) ∧
-      (act = build_act from (Deploy c setup)) ∧
-      (do
-        i <- (get_init c setup);
-        s <- get_state;
-       od s0 = return state s0) ∧
-      (newEnv = set_contract_state to state (add_contract to c prevEnv)) ==>
+      (act = build_act (Client_address s0.context.msgSender) (Deploy c setup)) ∧
+      ((SND (get_init c setup s0)).campaign = state.campaign) ∧
+      (setup.code = state.context.storage) ∧
+      (newEnv = set_contract_state to state.campaign (add_contract to c prevEnv)) ==>
       ActionEvaluation prevEnv act newEnv) ∧
-      (∀ prevEnv act newEnv from to c prevState data nextState.
+      (∀ prevEnv act newEnv to c prevState data nextState.
       (get_envContracts prevEnv to = SOME c) ∧
-      (get_envContractStates prevEnv to = SOME prevState) ∧
-      (act = build_act from (Call to data)) ∧
-      (do
-        r <- (get_receive c data);
-        s <- get_state;
-       od prevState = return nextState prevState) ∧
-      (newEnv = set_contract_state to nextState prevEnv) ==>
+      (get_envContractStates prevEnv to = SOME prevState.campaign) ∧
+      (act = build_act (Client_address prevState.context.msgSender) (Call to data)) ∧
+      ((SND (get_receive c data prevState)).campaign = nextState.campaign) ∧
+      (newEnv = set_contract_state to nextState.campaign prevEnv) ==>
       ActionEvaluation prevEnv act newEnv)
 End
 
 Inductive ChainStep:
-  (∀prevState nextState act. (~(get_actType act = noAct) ∧
-  ActionEvaluation prevState act nextState) ==> ChainStep prevState nextState)
+  (∀prevState nextState act. ActionEvaluation prevState act nextState ==> ChainStep prevState nextState)
 End
 
 Inductive ChainedList:
